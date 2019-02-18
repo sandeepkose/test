@@ -1,0 +1,17 @@
+version: 0.2
+
+#environment_variables:
+# plaintext:
+#  GIT_USER: warbyparker.user
+#  GIT_PASSWORD: Ht5nwarby
+#  HC_HOST: localhost
+phases:
+##  pre_build:
+##    commands:
+##      - echo "Logging in to Amazon ECR..."
+##      - $(aws ecr get-login --no-include-email --region us-east-2)
+#      - cd web
+  build:
+    commands:
+      - curl -H "X-GitHub-Event: push" -H "Content-Type: application/json" -k -X POST --data-binary @payload.json https://us-east-2.webhooks.aws/trigger?t=eyJlbmNyeXB0ZWREYXRhIjoiK0hreHp1SXI2eHE4UlA1Y2VtVE5Ranp6VVBuVTdvNHNsbmpLd2JCY3hHZm10T0Z1MVNVZUlacnFvV0lDellWQ1cxTG9WQ0MvK3N4VlpmYTVhUFNTdTFVa3BiWmE3NXBZVGRJUHlqWEZKR3NlWDBYM1VyTUkxeCs0ZGwxVUQwNU56MVNMc2lzck9QNDN5SElJUGh0dFg4cVpkUHZiMmxlT0gyeCtiY01seURBSnN3PT0iLCJpdlBhcmFtZXRlclNwZWMiOiJjdmp0SzBGRm9nbTc0c2IvIiwibWF0ZXJpYWxTZXRTZXJpYWwiOjF9&v=1
+
