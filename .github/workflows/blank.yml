@@ -53,7 +53,7 @@ jobs:
       - name: Deploy / Update Service on Swarm Leader
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-            ubuntu@3.122.246.136 <<EOF
+            ubuntu@3.122.246.136 sudo -i <<EOF
             echo "🚀 Deploying on Swarm Leader"
       
             # Login to GHCR and create Docker secret if needed
@@ -74,12 +74,7 @@ jobs:
                 --force ${{ env.SERVICE_NAME }}_app
             else
               echo "🆕 Deploying new stack..."
-              sudo -i <<'INNER_EOF'
-              ls -la
-              set -a
-              source /root/.env
-              set +a
-              docker stack deploy -c /root/docker-compose.yaml invoice --with-registry-auth
-              INNER_EOF
+
+              ls -la && set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml invoice --with-registry-auth
             fi
           EOF
