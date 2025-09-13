@@ -89,19 +89,6 @@ jobs:
             fi
           done
 
-      - name: Copy files via SSH
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ steps.find-manager.outputs.manager_ip }}
-          username: ubuntu
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "./infra/ec2-prod/docker-compose.yaml,./infra/ec2-prod/otel-collector-config.yaml"
-          target: "/home/ubuntu/"
-          overwrite: true
-
-      - name: Echo image name
-        run: echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:release"
-
 
       - name: Deploy to prod server
         uses: appleboy/ssh-action@master
