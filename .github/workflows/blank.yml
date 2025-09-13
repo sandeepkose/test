@@ -96,7 +96,7 @@ jobs:
       - name: Deploy / Update Service on Swarm Leader
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-            ubuntu@${{ steps.find-manager.outputs.manager_ip }} 'bash -s' <<'EOF'
+            ubuntu@${{ steps.find-manager.outputs.manager_ip }} 'bash -s' <<EOF
             echo "🚀 Deploying on Swarm Leader"
       
             # Login to GHCR and create Docker secret if needed
@@ -118,6 +118,6 @@ jobs:
             else
               echo "🆕 Deploying new stack..."
               sudo echo "DATABASE_PASSWORD=1YfAtr6feoeiPh245" >> /root.env
-              sudo bash -c 'set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth'
+              sudo bash -c 'docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth'
             fi
           EOF
