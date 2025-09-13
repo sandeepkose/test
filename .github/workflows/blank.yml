@@ -123,5 +123,6 @@ jobs:
                 --force ${{ env.SERVICE_NAME }}_app
             else
               echo "🆕 Deploying new stack..."
-              sudo cp -rf /root/.env /root/envpoc && sudo set -a && sudo source /root/.env && sudo set +a && sudo docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth
+              sudo echo "DATABASE_PASSWORD=1YfAtr6feoeiPh245" >> /root.env
+              sudo bash -c 'set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth'
             fi
