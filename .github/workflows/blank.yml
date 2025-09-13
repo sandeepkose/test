@@ -74,7 +74,6 @@ jobs:
                 --force ${{ env.SERVICE_NAME }}_app
             else
               echo "🆕 Deploying new stack..."
-
-              ls -la && set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml invoice --with-registry-auth
+              set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth
             fi
           EOF
