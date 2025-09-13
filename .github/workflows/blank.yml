@@ -118,6 +118,6 @@ jobs:
             else
               echo "🆕 Deploying new stack..."
               sudo echo "DATABASE_PASSWORD=1YfAtr6feoeiPh245" >> /root/.env
-              sudo -i bash -c 'set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth'
+              sudo -i && set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth
             fi
           EOF
