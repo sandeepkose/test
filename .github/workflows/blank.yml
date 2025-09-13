@@ -123,7 +123,5 @@ jobs:
                 --force ${{ env.SERVICE_NAME }}_app
             else
               echo "🆕 Deploying new stack..."
-              IMAGE="ghcr.io/fino-data-services/invoice-extractor" \
-              REPLICAS=$NODE_COUNT \
-              sudo bash -c "set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth"
+              sudo bash -c 'set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth'
             fi
