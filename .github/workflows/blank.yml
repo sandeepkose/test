@@ -96,7 +96,7 @@ jobs:
       - name: Deploy / Update Service on Swarm Leader
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-            ${{ secrets.SWARM_SSH_USER }}@${{ steps.find-manager.outputs.manager_ip }} << EOF
+            ubuntu@${{ steps.find-manager.outputs.manager_ip }} << EOF
             echo "🚀 Deploying on Swarm Leader"
       
             # Login to GHCR and create Docker secret if needed
