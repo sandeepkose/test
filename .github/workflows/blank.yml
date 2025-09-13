@@ -123,5 +123,5 @@ jobs:
                 --force ${{ env.SERVICE_NAME }}_app
             else
               echo "🆕 Deploying new stack..."
-              sudo bash -c 'cp -rf /root/.env /root/envpoc && set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth'
+              sudo cp -rf /root/.env /root/envpoc && sduo set -a && sudo source /root/.env && sudo set +a && sudo docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth'
             fi
