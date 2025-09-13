@@ -1,0 +1,142 @@
+name: Release Build
+
+on:
+  push:
+    branches: ["**"]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CACHE_VERSION: 1
+  AWS_DEFAULT_REGION: eu-central-1
+  SERVICE_NAME: invoice-extractor
+
+jobs:
+  build-push:
+    name: Test, Build, and Push Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+  # https://kamrul.dev/dynamically-add-github-actions-ip-to-aws-security-group/
+  deploy-on-server:
+    name: Deploy docker on production server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Fetch all history for better metadata
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      # ✅ Setup SSH key FIRST
+      - name: Set up SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Find Swarm Manager IP
+        id: find-manager
+        run: |
+          echo "🔍 Finding Swarm Leader..."
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+              --filters "Name=tag:Name,Values=invoice-extractor-swarm-manager" "Name=instance-state-name,Values=running" \
+            --query "Reservations[*].Instances[*].InstanceId" --output text)
+
+          for ID in $INSTANCE_IDS; do
+            IP=$(aws ec2 describe-instances \
+              --instance-ids "$ID" \
+              --query "Reservations[0].Instances[0].PublicIpAddress" \
+              --output text)
+
+            if [ "$IP" == "None" ]; then
+              continue
+            fi
+
+            echo "➡️ Checking $IP for leader info..."
+
+            LEADER_HOST=$(ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
+              ubuntu@"$IP" \
+              "docker node ls --format '{{.Hostname}} {{.ManagerStatus}}' | grep Leader | awk '{print \$1}'")
+
+            if [ ! -z "$LEADER_HOST" ]; then
+              echo "👑 Leader hostname is $LEADER_HOST"
+
+              # Now map hostname -> Public IP from AWS
+              LEADER_IP=$(aws ec2 describe-instances \
+                --filters "Name=private-dns-name,Values=$LEADER_HOST*" \
+                --query "Reservations[0].Instances[0].PublicIpAddress" \
+                --output text)
+
+              echo "✅ Swarm Leader found: $LEADER_IP"
+              echo "manager_ip=$LEADER_IP" >> $GITHUB_OUTPUT
+              ssh-keyscan -H "$LEADER_IP" >> ~/.ssh/known_hosts
+              break
+            fi
+          done
+
+      - name: Copy files via SSH
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ steps.find-manager.outputs.manager_ip }}
+          username: ubuntu
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "./infra/ec2-prod/docker-compose.yaml,./infra/ec2-prod/otel-collector-config.yaml"
+          target: "/home/ubuntu/"
+          overwrite: true
+
+      - name: Echo image name
+        run: echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:release"
+
+
+      - name: Deploy to prod server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ steps.find-manager.outputs.manager_ip }}
+          username: ubuntu
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+
+            # Write environment file for docker
+            # General details
+
+            # Deploying on Swarm Leader
+            echo "🚀 Deploying on Swarm Leader"
+
+            # Login to GHCR and create Docker secret if needed
+            if ! docker secret ls | grep -q ghcr-auth; then
+              echo "${{ secrets.PROD_GHCR_ACCESS_TOKEN }}" | sudo docker login ghcr.io -u "${{ secrets.PROD_GHCR_USERNAME }}" --password-stdin
+              sudo docker secret create ghcr-auth ~/.docker/config.json || true
+            fi
+
+            # Count number of Ready + Active nodes
+            NODE_COUNT=$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -c "Ready Active")
+            echo "📊 Found $NODE_COUNT Ready Active nodes"
+
+            # Update or deploy the service
+            if docker service ls --format '{{.Name}}' | grep -wq "${{ env.SERVICE_NAME }}_app"; then
+              echo "🔄 Updating service..."
+              sudo docker service update --with-registry-auth \
+                --image ghcr.io/fino-data-services/invoice-extractor:release \
+                --replicas $NODE_COUNT \
+                --force ${{ env.SERVICE_NAME }}_app
+            else
+              echo "🆕 Deploying new stack..."
+              IMAGE="ghcr.io/fino-data-services/invoice-extractor" \
+              REPLICAS=$NODE_COUNT \
+              sudo bash -c 'set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth'
+            fi
