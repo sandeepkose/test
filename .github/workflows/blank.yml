@@ -53,7 +53,7 @@ jobs:
       - name: Deploy / Update Service on Swarm Leader
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-            ubuntu@3.122.246.136 sudo -i <<EOF
+            ubuntu@10.12.2.205 sudo -i <<EOF
             echo "🚀 Deploying on Swarm Leader"
       
             # Login to GHCR and create Docker secret if needed
