@@ -70,10 +70,7 @@ jobs:
 
             if docker service ls --format '{{.Name}}' | grep -wq "${{ env.SERVICE_NAME }}_app"; then
               echo "🔄 Updating service..."
-              docker service update --with-registry-auth \
-                --image ghcr.io/fino-data-services/invoice-extractor:release \
-                --replicas \$NODE_COUNT \
-                --force ${{ env.SERVICE_NAME }}_app
+              set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth
             else
               echo "🆕 Deploying new stack..."
               set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth
