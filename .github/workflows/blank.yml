@@ -68,11 +68,15 @@ jobs:
             NODE_COUNT=\$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -c "Ready Active")
             echo "📊 Found \$NODE_COUNT Ready Active nodes"
 
-            if docker service ls --format '{{.Name}}' | grep -wq "${{ env.SERVICE_NAME }}_app"; then
-              echo "🔄 Updating service..."
-              set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth
+            if grep -q '^REPLICAS=' "/root/.env"; then
+              echo "🔁 Updating existing REPLICAS to $NODE_COUNT"
+              sed -i "s/^REPLICAS=.*/REPLICAS=$NODE_COUNT/" "/root/.env"
             else
-              echo "🆕 Deploying new stack..."
-              set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth
+              echo "➕ Adding new REPLICAS=$NODE_COUNT"
+            echo "REPLICAS=$NODE_COUNT" >> "/root/.env"
             fi
+            
+            echo "Deploy/Update stack"
+            set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth
+
           EOF
