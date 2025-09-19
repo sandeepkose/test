@@ -77,6 +77,6 @@ jobs:
             fi
             
             echo "Deploy/Update stack"
-            set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth
+            set -a && source /root/.env && set +a && docker stack deploy -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }} --with-registry-auth --resolve-image=always
 
           EOF
