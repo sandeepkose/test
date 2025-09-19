@@ -65,15 +65,15 @@ jobs:
             fi
 
             # Count number of Ready + Active nodes
-            NODE_COUNT=$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -c "Ready Active")
-            echo "📊 Found $NODE_COUNT Ready Active nodes"
+            NODE_COUNT=\$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -c "Ready Active")
+            echo "📊 Found \$NODE_COUNT Ready Active nodes"
 
             if grep -q '^REPLICAS=' "/root/.env"; then
-              echo "🔁 Updating existing REPLICAS to $NODE_COUNT"
-              sed -i "s/^REPLICAS=.*/REPLICAS=$NODE_COUNT/" "/root/.env"
+              echo "🔁 Updating existing REPLICAS to \$NODE_COUNT"
+              sed -i "s/^REPLICAS=.*/REPLICAS=\$NODE_COUNT/" "/root/.env"
             else
-              echo "➕ Adding new REPLICAS=$NODE_COUNT"
-            echo "REPLICAS=$NODE_COUNT" >> "/root/.env"
+              echo "➕ Adding new REPLICAS=\$NODE_COUNT"
+            echo "REPLICAS=\$NODE_COUNT" >> "/root/.env"
             fi
             
             echo "Deploy/Update stack"
