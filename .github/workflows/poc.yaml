@@ -43,9 +43,9 @@ jobs:
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Copy files via SSH on GMI
-        uses: appleboy/scp-action@v1
+        uses: appleboy/scp-action@master
         with:
-          host: "2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189"
+          host: "[2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189]"
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: "./README.md"
