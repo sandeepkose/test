@@ -45,7 +45,7 @@ jobs:
       - name: Copy files via SSH on GMI
         uses: appleboy/scp-action@v1
         with:
-          host: "[2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189]"
+          host: "2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189"
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: "./README.md"
@@ -55,7 +55,7 @@ jobs:
       - name: Deploy to GMI prod server
         uses: appleboy/ssh-action@master
         with:
-          host: "[2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189]"
+          host: "2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189"
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
