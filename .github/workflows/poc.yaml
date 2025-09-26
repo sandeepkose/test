@@ -1,0 +1,100 @@
+name: Release Build
+
+on:
+  push:
+    branches: ["**"]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CACHE_VERSION: 1
+  AWS_DEFAULT_REGION: eu-central-1
+  SERVICE_NAME: invoice-extractor
+
+jobs:
+  build-push:
+    name: Test, Build, and Push Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+  # https://kamrul.dev/dynamically-add-github-actions-ip-to-aws-security-group/
+  deploy-on-server:
+    name: Deploy docker on production server
+    runs-on: self-hosted
+    container:
+      image: ubuntu:24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Fetch all history for better metadata
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Install AWS CLI
+        run: |
+          apt-get update
+          apt-get install -y curl unzip git
+
+      - name: Get Public IPv6
+        id: ip
+        run: |
+          ipv6=$(curl -6 -s https://api64.ipify.org)
+          echo "IPv6: $ipv6"
+          echo "ipv6=$ipv6" >> $GITHUB_OUTPUT
+
+      - name: Show the IPv6 from output
+        run: |
+          echo "My public IPv6 is: ${{ steps.ip.outputs.ipv6 }}"
+
+      - name: Get Github action IP
+        id: ip6
+        uses: haythem/public-ip@v1.3
+        with:
+          ip-version: 6
+
+      - name: Print IPv6 Address
+        run: |
+          echo "My used public IPv6 is: ${{ steps.ip6.outputs.ip }}"
+
+      - name: testing ipv6 for command
+        run: |
+          curl -m 9 --ipv6 --verbose https://google.com
+
+      - name: Copy files via SSH on GMI
+        uses: appleboy/scp-action@master
+        with:
+          host: 2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189
+          port: 22
+          protocol: tcp6
+          username: ubuntu
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "./README.md"
+          target: "/home/ubuntu/"
+          overwrite: true
+
+      - name: Deploy to GMI prod server
+        uses: appleboy/ssh-action@master
+        with:
+          host: 2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189
+          username: ubuntu
+          protocol: tcp6
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+
+            # Write environment file for docker
+            # General details
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> /home/ubuntu/.env
