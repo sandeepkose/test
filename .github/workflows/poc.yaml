@@ -28,7 +28,7 @@ jobs:
   # https://kamrul.dev/dynamically-add-github-actions-ip-to-aws-security-group/
   deploy-on-server:
     name: Deploy docker on production server
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
