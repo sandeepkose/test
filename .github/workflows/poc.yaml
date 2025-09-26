@@ -29,23 +29,17 @@ jobs:
   deploy-on-server:
     name: Deploy docker on production server
     runs-on: self-hosted
- #   container:
- #     image: ubuntu:24.04
+    container:
+      image: ubuntu:24.04
     steps:
 
-    - name: Run everything inside IPv6-enabled Docker container
+    - name: Install dependencies and get IPv6
       run: |
-        docker run --rm \
-          -v "${GITHUB_WORKSPACE}:/workspace" \
-          -w /workspace \
-          ubuntu:24.04 bash -c '
-            set -e
+        echo "Installing dependencies..."
+        apt-get update
+        apt-get install -y curl unzip openssh-client
 
-            echo "Installing dependencies..."
-            apt-get update
-            apt-get install -y curl unzip openssh-client
-
-            echo "Getting public IPv6 address..."
-            ipv6=$(curl -6 -s https://api64.ipify.org || echo "No IPv6")
-            echo "IPv6: $ipv6"
+        echo "Getting public IPv6 address..."
+        ipv6=$(curl -6 -s https://api64.ipify.org || echo "No IPv6")
+        echo "IPv6: $ipv6"
           '
