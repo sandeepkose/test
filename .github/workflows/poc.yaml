@@ -62,25 +62,8 @@ jobs:
             ls -la
 
             echo "Installing dependencies..."
-            apt-get update
-            apt-get install -y curl unzip openssh-client
-
-            echo "Installing AWS CLI..."
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            ./aws/install
-            rm -rf awscliv2.zip aws
-
-            echo "Getting public IPv6..."
-            ipv6=$(curl -6 -s https://api64.ipify.org)
-            echo "IPv6: $ipv6"
-
-            echo "Authorizing IP in AWS Security Group..."
-            #aws ec2 authorize-security-group-ingress \
-              --group-id "$AWS_SG_ID" \
-              --protocol tcp \
-              --port 22 \
-              --cidr "${ipv6}/128"
+            #apt-get update
+            #apt-get install -y curl unzip openssh-client
 
             ssh -o StrictHostKeyChecking=no -i ./id_rsa \
             ubuntu@2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189 sudo -i <<EOF
