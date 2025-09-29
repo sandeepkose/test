@@ -40,6 +40,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v5
 
+    # ✅ Setup SSH key FIRST
+    - name: Set up SSH Key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.DEPLOY_SSH_KEY }}" > ./id_rsa
+        chmod 600 ./id_rsa 
+
+
     - name: Run everything inside IPv6-enabled container
       run: |
         docker run --rm \
@@ -68,9 +76,21 @@ jobs:
             echo "IPv6: $ipv6"
 
             echo "Authorizing IP in AWS Security Group..."
-            aws ec2 authorize-security-group-ingress \
+            #aws ec2 authorize-security-group-ingress \
               --group-id "$AWS_SG_ID" \
               --protocol tcp \
               --port 22 \
               --cidr "${ipv6}/128"
+
+            ssh -o StrictHostKeyChecking=no -i ./id_rsa \
+            ubuntu@2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189 sudo -i <<EOF
+
+            # Login into ghcr
+            echo "${{ secrets.PROD_GHCR_ACCESS_TOKEN }}" | sudo docker login ghcr.io -u "${{ secrets.PROD_GHCR_USERNAME }}" --password-stdin
+
+            # Write environment file for docker
+            # General details
+            echo "SECRET_KEY_BASE=${{ secrets.PROD_SECRET_KEY_BASE }}" >> /home/ubuntu/.env
+            EOF
+          
           '
