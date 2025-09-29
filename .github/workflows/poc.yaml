@@ -10,6 +10,8 @@ env:
   CACHE_VERSION: 1
   AWS_DEFAULT_REGION: eu-central-1
   SERVICE_NAME: invoice-extractor
+  AWS_SG_ID: sg-0c55dbe5d388c7c3b
+
 
 jobs:
   build-push:
