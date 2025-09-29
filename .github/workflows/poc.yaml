@@ -29,17 +29,46 @@ jobs:
   deploy-on-server:
     name: Deploy docker on production server
     runs-on: self-hosted
-    container:
-      image: ubuntu:24.04
+#    container:
+#      image: ubuntu:24.04
     steps:
 
-    - name: Install dependencies and get IPv6
-      run: |
-        echo "Installing dependencies..."
-        apt-get update
-        apt-get install -y curl unzip openssh-client
+    - name: Checkout code
+      uses: actions/checkout@v5
 
-        echo "Getting public IPv6 address..."
-        ipv6=$(curl -6 -s https://api64.ipify.org || echo "No IPv6")
-        echo "IPv6: $ipv6"
+    - name: Run everything inside IPv6-enabled container
+
+    - name: Run everything inside IPv6-enabled container
+      run: |
+        docker run --rm \
+          -v "$PWD":/workspace \
+          -w /workspace \
+          -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+          -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+          -e AWS_DEFAULT_REGION="${{ env.AWS_DEFAULT_REGION }}" \
+          -e AWS_SG_ID="${{ env.AWS_SG_ID }}" \
+          ubuntu:24.04 bash -c '
+            set -e
+            ls -la
+
+            echo "Installing dependencies..."
+            apt-get update
+            apt-get install -y curl unzip openssh-client
+
+            echo "Installing AWS CLI..."
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            ./aws/install
+            rm -rf awscliv2.zip aws
+
+            echo "Getting public IPv6..."
+            ipv6=$(curl -6 -s https://api64.ipify.org)
+            echo "IPv6: $ipv6"
+
+            echo "Authorizing IP in AWS Security Group..."
+            aws ec2 authorize-security-group-ingress \
+              --group-id "$AWS_SG_ID" \
+              --protocol tcp \
+              --port 22 \
+              --cidr "${ipv6}/128"
           '
