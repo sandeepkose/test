@@ -62,8 +62,8 @@ jobs:
             ls -la
 
             echo "Installing dependencies..."
-            #apt-get update
-            #apt-get install -y curl unzip openssh-client
+            apt-get update
+            apt-get install -y curl unzip openssh-client
 
             ssh -o StrictHostKeyChecking=no -i ./id_rsa \
             ubuntu@2a05:d014:1e87:d860:a3b4:d7da:cbd6:b189 sudo -i <<EOF
