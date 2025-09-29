@@ -32,7 +32,9 @@ jobs:
 #    container:
 #      image: ubuntu:24.04
     steps:
-
+    - name: Fix workspace permissions before checkout
+      run: |
+        sudo chown -R $(id -u):$(id -g) ${{ github.workspace }}
     - name: Checkout code
       uses: actions/checkout@v5
 
