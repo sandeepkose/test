@@ -9,7 +9,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   CACHE_VERSION: 1
   AWS_DEFAULT_REGION: eu-central-1
-  STACK_NAME: invoice-extractor
+  SERVICE_NAME: invoice-extractor
 
 jobs:
   build-push:
@@ -56,7 +56,7 @@ jobs:
 
           # Wait for updated tasks (of specific service) to become Running
           ##STACK_NAME="${{ env.STACK_NAME }}"
-          SERVICE_NAME="${{ env.STACK_NAME }}_app"
+          SERVICE_NAME=invoice-extractor_app
           TIMEOUT=300
           SLEEP=5
           ELAPSED=0
