@@ -9,7 +9,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   CACHE_VERSION: 1
   AWS_DEFAULT_REGION: eu-central-1
-  SERVICE_NAME: invoice-extractor
+  STACK_NAME: invoice-extractor
 
 jobs:
   build-push:
@@ -52,7 +52,8 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@3.121.209.39 sudo -i <<'EOF'
 
           # Wait for updated tasks (of specific service) to become Running
-          SERVICE_NAME=invoice-extractor_app
+            STACK_NAME="${{ env.STACK_NAME }}"
+            SERVICE_NAME="\${STACK_NAME}_app"
           TIMEOUT=300
           SLEEP=5
           ELAPSED=0
