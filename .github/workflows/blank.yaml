@@ -69,8 +69,11 @@ jobs:
           echo "📦 Waiting for all \$EXPECTED_COUNT tasks of \$STACK_NAME to be running..."
 
           while true; do
-              RUNNING_COUNT=\$(docker service ps --filter desired-state=running --format '{{.CurrentState}}' "\$STACK_NAME" | grep -c '^Running')
-
+               RUNNING_COUNT=\$(docker service ps --no-trunc "\$STACK_NAME" \
+               | grep -v 'Shutdown' \
+               | grep -v '\_' \
+               | grep -c 'Running')
+               
               if ! [[ "\$RUNNING_COUNT" =~ ^[0-9]+\$ ]]; then
                 echo "⚠️ Unexpected RUNNING_COUNT: '\$RUNNING_COUNT', treating as 0"
                 RUNNING_COUNT=0
