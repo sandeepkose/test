@@ -51,39 +51,6 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@3.121.209.39 sudo -i <<'EOF'
 
-      - name: Deploy / Update Service on Swarm Leader
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-            ubuntu@${{ steps.find-manager.outputs.manager_ip }} 'bash -s' <<EOF
-            echo "🚀 Deploying on Swarm Leader"
-
-            # Login to GHCR and create Docker secret if needed
-            echo "${{ secrets.PROD_GHCR_ACCESS_TOKEN }}" | docker login ghcr.io -u "${{ secrets.PROD_GHCR_USERNAME }}" --password-stdin
-
-            if ! docker secret ls | grep -q ghcr-auth; then
-              echo "${{ secrets.PROD_GHCR_ACCESS_TOKEN }}" | docker login ghcr.io -u "${{ secrets.PROD_GHCR_USERNAME }}" --password-stdin
-              docker secret create ghcr-auth ~/.docker/config.json || true
-            fi
-
-            # Check OTL config is created.
-            if ! docker config ls | grep -q otel-collector-config; then
-              sed -i "s|dbpassword|${{ secrets.PROD_DB_PASSWORD }}|g" /root/otel-collector-config.yaml
-              docker config create otel-collector-config /root/otel-collector-config.yaml || true
-            fi
-
-            # Count number of Ready + Active nodes
-            NODE_COUNT=\$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -c "Ready Active")
-            echo "📊 Found \$NODE_COUNT Ready Active nodes"
-
-            # Update NODE_COUNT in env
-            if grep -q '^REPLICAS=' "/root/.env"; then
-              echo "🔁 Updating existing REPLICAS to \$NODE_COUNT"
-              sed -i "s/^REPLICAS=.*/REPLICAS=\$NODE_COUNT/" "/root/.env"
-            else
-              echo "➕ Adding new REPLICAS=\$NODE_COUNT"
-              echo "REPLICAS=\$NODE_COUNT" >> "/root/.env"
-            fi
-
             echo "🚢 Deploying stack..."
             set -a && source /root/.env && set +a && docker stack deploy --with-registry-auth --resolve-image=always -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }}
 
