@@ -54,7 +54,7 @@ jobs:
           echo "🚀 Waiting for all new tasks to be healthy and running..."
 
           SERVICE_NAME="${SERVICE_NAME:-invoice-extractor}"  # fallback default
-          STACK_NAME="${SERVICE_NAME}_app"
+          STACK_NAME="${SERVICE_NAME}"
           TIMEOUT=300
           SLEEP=5
           ELAPSED=0
