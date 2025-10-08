@@ -51,62 +51,60 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@3.121.209.39 sudo -i <<'EOF'
 
-            echo "🚢 Deploying stack..."
-            set -a && source /root/.env && set +a && docker stack deploy --with-registry-auth --resolve-image=always -c /root/docker-compose.yaml ${{ env.SERVICE_NAME }}
+          # Wait for updated tasks (of specific service) to become Running
+          SERVICE_NAME=invoice-extractor_app
+          TIMEOUT=300
+          SLEEP=5
+          ELAPSED=0
 
-            # Wait for updated tasks (of specific service) to become Running
-            SERVICE_NAME=invoice-extractor_app
-            TIMEOUT=300
-            SLEEP=5
-            ELAPSED=0
+          echo "🚀 Deploying service: \$SERVICE_NAME"
+          echo "⏳ Waiting for all updated tasks (by image SHA) to be running..."
 
-            echo "🚀 Deploying service: \$SERVICE_NAME"
-            echo "⏳ Waiting for all updated tasks (by image SHA) to be running..."
+          while true; do
+            PENDING_TASKS=""
+            RUNNING_TASKS_COUNT=0
 
-            while true; do
-              PENDING_TASKS=""
-              RUNNING_TASKS_COUNT=0
+            # Get the current image SHA from service spec
+            SERVICE_IMAGE_WITH_SHA=\$(docker service inspect "\$SERVICE_NAME" --format '{{"{{.Spec.TaskTemplate.ContainerSpec.Image}}"}}')
 
-              # Get the current image SHA from service spec
-              SERVICE_IMAGE_WITH_SHA=\$(docker service inspect "\$SERVICE_NAME" --format '{{"{{.Spec.TaskTemplate.ContainerSpec.Image}}"}}')
+            # Get current running tasks
+            TASKS=\$(docker service ps "\$SERVICE_NAME" --no-trunc --filter desired-state=Running \
+              --format '{{"{{.ID}} {{.Image}} {{.CurrentState}}"}}')
 
-              # Get current running tasks
-              TASKS=\$(docker service ps "\$SERVICE_NAME" --no-trunc --filter desired-state=Running \
-                --format '{{"{{.ID}} {{.Image}} {{.CurrentState}}"}}')
+            # Match only tasks using current image SHA
+            MATCHING_TASKS=\$(echo "\$TASKS" | grep "\$SERVICE_IMAGE_WITH_SHA" || true)
 
-              # Match only tasks using current image SHA
-              MATCHING_TASKS=\$(echo "\$TASKS" | grep "\$SERVICE_IMAGE_WITH_SHA" || true)
+            while IFS= read -r line; do
+              TASK_ID=\$(echo "\$line" | awk '{print \$1}')
+              TASK_STATE=\$(echo "\$line" | awk '{\$1=""; \$2=""; print \$0}' | xargs)
 
-              while IFS= read -r line; do
-                TASK_ID=\$(echo "\$line" | awk '{print \$1}')
-                TASK_STATE=\$(echo "\$line" | awk '{\$1=""; \$2=""; print \$0}' | xargs)
-
-                if [[ "\$TASK_STATE" == Running* ]]; then
-                  ((RUNNING_TASKS_COUNT++))
-                  echo "            ✅ Task \$TASK_ID is updated and running"
-                else
-                  PENDING_TASKS+="Task \$TASK_ID is not running yet (state: \$TASK_STATE)\n"
-                fi
-              done <<< "\$MATCHING_TASKS"
-
-              echo "            ✅ Total updated running containers: \$RUNNING_TASKS_COUNT"
-
-              if [ -z "\$PENDING_TASKS" ]; then
-                echo "            ✅ All updated tasks are running with the correct image SHA."
-                break
+              if [[ "\$TASK_STATE" == Running* ]]; then
+                ((RUNNING_TASKS_COUNT++))
+                echo "✅ Task \$TASK_ID is updated and running"
               else
-                echo -e "            ⏳ Waiting for these tasks:\n\$PENDING_TASKS"
+                PENDING_TASKS+="Task \$TASK_ID is not running yet (state: \$TASK_STATE)\n"
               fi
+            done <<< "\$MATCHING_TASKS"
 
-              if [ "\$ELAPSED" -ge "\$TIMEOUT" ]; then
-                echo -e "\n            ❌ Timeout reached. Some updated tasks did not reach running state:"
-                echo -e "\$PENDING_TASKS"
-                exit 1
-              fi
+            echo "✅ Total updated running containers: \$RUNNING_TASKS_COUNT"
 
-              sleep \$SLEEP
-              ELAPSED=\$((ELAPSED + SLEEP))
-            done
+            if [ -z "\$PENDING_TASKS" ]; then
+              echo "✅ All updated tasks are running with the correct image SHA."
+              break
+            else
+              echo -e "⏳ Waiting for these tasks:\n\$PENDING_TASKS"
+            fi
+
+            if [ "\$ELAPSED" -ge "\$TIMEOUT" ]; then
+              echo -e "\n❌ Timeout reached. Some updated tasks did not reach running state:"
+              echo -e "\$PENDING_TASKS"
+              exit 1
+            fi
+
+            sleep \$SLEEP
+            ELAPSED=\$((ELAPSED + SLEEP))
+          done
+
 
 
 
