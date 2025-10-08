@@ -54,17 +54,17 @@ jobs:
           echo "🚀 Checking for healthy and up-to-date tasks..."
 
           SVC_NAME="${{ env.SERVICE_NAME }}"
-          STACK_NAME="${SVC_NAME}_app"
+          STACK_NAME="\${SVC_NAME}_app"
           TIMEOUT=300
           SLEEP=5
           ELAPSED=0
           LAST_COUNT=0
 
           # Get expected image from service definition
-          EXPECTED_IMAGE=$(docker service inspect --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "$STACK_NAME")
+          EXPECTED_IMAGE=$(docker service inspect --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "\$STACK_NAME")
 
           if [ -z "$EXPECTED_IMAGE" ]; then
-            echo "❌ Failed to retrieve expected image for $STACK_NAME"
+            echo "❌ Failed to retrieve expected image for \$STACK_NAME"
             exit 1
           fi
 
