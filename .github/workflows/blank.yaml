@@ -48,74 +48,76 @@ jobs:
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa          
 
+
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@3.121.209.39 sudo -i <<'EOF'
 
           echo "🚀 Waiting for all new tasks to be healthy and running..."
 
           SERVICE_NAME="${SERVICE_NAME:-invoice-extractor}"  # fallback default
-          STACK_NAME="\${SERVICE_NAME}_app"
+          STACK_NAME="${SERVICE_NAME}_app"
           TIMEOUT=300
           SLEEP=5
           ELAPSED=0
           LAST_COUNT=0
 
           # Get expected image from service definition
-          EXPECTED_IMAGE=\$(docker service inspect --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "\$STACK_NAME")
+          EXPECTED_IMAGE=$(docker service inspect --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "$STACK_NAME")
 
-          if [ -z "\$EXPECTED_IMAGE" ]; then
-            echo "❌ Failed to retrieve expected image for \$STACK_NAME"
+          if [ -z "$EXPECTED_IMAGE" ]; then
+            echo "❌ Failed to retrieve expected image for $STACK_NAME"
             exit 1
           fi  
 
-          echo "🔍 Expected image: \$EXPECTED_IMAGE"
+          echo "🔍 Expected image: $EXPECTED_IMAGE"
 
           # Determine how many tasks are expected to be healthy (based on active nodes)
-          EXPECTED_COUNT=\$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -i '^Ready Active\$' | wc -l)
+          EXPECTED_COUNT=$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -i '^Ready Active$' | wc -l)
 
-          if ! [[ "\$EXPECTED_COUNT" =~ ^[0-9]+$ ]]; then
-            echo "❌ Could not determine number of active nodes. Got: '\$EXPECTED_COUNT'"
+          if ! [[ "$EXPECTED_COUNT" =~ ^[0-9]+$ ]]; then
+            echo "❌ Could not determine number of active nodes. Got: '$EXPECTED_COUNT'"
             exit 1
           fi
 
-          echo "📦 Waiting for all \$EXPECTED_COUNT tasks of \$STACK_NAME to be healthy and updated..."
+          echo "📦 Waiting for all $EXPECTED_COUNT tasks of $STACK_NAME to be healthy and updated..."
 
           while true; do
-              RUNNING_COUNT=\$(docker ps \
-                --filter "name=\$STACK_NAME" \
+              RUNNING_COUNT=$(docker ps \
+                --filter "name=$STACK_NAME" \
                 --filter "health=healthy" \
-                --filter "ancestor=\$EXPECTED_IMAGE" \
+                --filter "ancestor=$EXPECTED_IMAGE" \
                 --format '{{.ID}}' | wc -l)
 
-              if ! [[ "\$RUNNING_COUNT" =~ ^[0-9]+$ ]]; then
-                echo "⚠️ Unexpected RUNNING_COUNT: '\$RUNNING_COUNT', treating as 0"
+              if ! [[ "$RUNNING_COUNT" =~ ^[0-9]+$ ]]; then
+                echo "⚠️ Unexpected RUNNING_COUNT: '$RUNNING_COUNT', treating as 0"
                 RUNNING_COUNT=0
               fi
 
-              if [ "\$RUNNING_COUNT" -ne "\$LAST_COUNT" ]; then
-                echo "🟢 \$RUNNING_COUNT / \$EXPECTED_COUNT tasks are running and healthy..."
-                LAST_COUNT=\$RUNNING_COUNT
+              if [ "$RUNNING_COUNT" -ne "$LAST_COUNT" ]; then
+                echo "🟢 $RUNNING_COUNT / $EXPECTED_COUNT tasks are running and healthy..."
+                LAST_COUNT=$RUNNING_COUNT
               fi
 
-              if [ "\$RUNNING_COUNT" -eq "\$EXPECTED_COUNT" ]; then
-                echo "✅ All \$RUNNING_COUNT tasks of \$STACK_NAME are healthy and up-to-date."
+              if [ "$RUNNING_COUNT" -eq "$EXPECTED_COUNT" ]; then
+                echo "✅ All $RUNNING_COUNT tasks of $STACK_NAME are healthy and up-to-date."
                 break
               fi
 
-              if [ "\$ELAPSED" -ge "\$TIMEOUT" ]; then
-                echo "❌ Timeout reached. Only \$RUNNING_COUNT / \$EXPECTED_COUNT tasks are healthy."
-                echo "🔍 Last few tasks for \$STACK_NAME:"
-                docker service ps --no-trunc "\$STACK_NAME" | head -n 1
-                docker service ps --no-trunc "\$STACK_NAME" | tail -n +2 | head -n 5
-                echo "🔍 Running containers for \$STACK_NAME:"
-                docker ps --filter "name=\$STACK_NAME"
+              if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+                echo "❌ Timeout reached. Only $RUNNING_COUNT / $EXPECTED_COUNT tasks are healthy."
+                echo "🔍 Last few tasks for $STACK_NAME:"
+                docker service ps --no-trunc "$STACK_NAME" | head -n 1
+                docker service ps --no-trunc "$STACK_NAME" | tail -n +2 | head -n 5
+                echo "🔍 Running containers for $STACK_NAME:"
+                docker ps --filter "name=$STACK_NAME"
                 exit 1
               fi
 
-              sleep "\$SLEEP"
-              ELAPSED=\$((ELAPSED + SLEEP))
+              sleep "$SLEEP"
+              ELAPSED=$((ELAPSED + SLEEP))
           done
 
           EOF
+
 
 
 
