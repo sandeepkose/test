@@ -69,8 +69,8 @@ jobs:
             RUNNING_TASKS_COUNT=0
 
             # Get the current image SHA from service spec
-            SERVICE_IMAGE_WITH_SHA=\$(docker service inspect \$SERVICE_NAME --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
-
+            SERVICE_IMAGE_WITH_SHA=$(docker service inspect \$SERVICE_NAME --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
+            echo "service image with sha  $SERVICE_IMAGE_WITH_SHA or \$SERVICE_IMAGE_WITH_SHA "
             # Get current running tasks
             TASKS=\$(docker service ps "\$SERVICE_NAME" --no-trunc --filter desired-state=Running \
               --format '{{"{{.ID}} {{.Image}} {{.CurrentState}}"}}')
