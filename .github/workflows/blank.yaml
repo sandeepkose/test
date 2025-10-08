@@ -61,49 +61,49 @@ jobs:
           echo "⏳ Waiting for all updated tasks (by image SHA) to be running..."
 
           while true; do
-            PENDING_TASKS=""
-            RUNNING_TASKS_COUNT=0
+                    PENDING_TASKS=""
+                    RUNNING_TASKS_COUNT=0
 
-            # Get the current image SHA from service spec
-            SERVICE_IMAGE_WITH_SHA=$(docker service inspect "$SERVICE_NAME" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
+                    # Get the current image SHA from service spec
+                    SERVICE_IMAGE_WITH_SHA=$(docker service inspect "$SERVICE_NAME" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
 
-            # Get current running tasks
-            TASKS=$(docker service ps "$SERVICE_NAME" --no-trunc --filter desired-state=Running \
-              --format '{{.ID}} {{.Image}} {{.CurrentState}}')
+                    # Get current running tasks
+                    TASKS=$(docker service ps "$SERVICE_NAME" --no-trunc --filter desired-state=Running --format '{{.ID}} {{.Image}} {{.CurrentState}}')
 
-            # Match only tasks using current image SHA
-            MATCHING_TASKS=$(echo "$TASKS" | grep "$SERVICE_IMAGE_WITH_SHA" || true)
+                    # Match only tasks using current image SHA
+                    MATCHING_TASKS=$(echo "$TASKS" | grep "$SERVICE_IMAGE_WITH_SHA" || true)
 
-            while IFS= read -r line; do
-              TASK_ID=$(echo "$line" | awk '{print $1}')
-              TASK_STATE=$(echo "$line" | awk '{$1=""; $2=""; print $0}' | xargs)
+                    while IFS= read -r line; do
+                              TASK_ID=$(echo "$line" | awk '{print $1}')
+                              TASK_STATE=$(echo "$line" | awk '{$1=""; $2=""; print $0}' | xargs)
 
-              if [[ "$TASK_STATE" == Running* ]]; then
-                ((RUNNING_TASKS_COUNT++))
-                echo "✅ Task $TASK_ID is updated and running"
-              else
-                PENDING_TASKS+="Task $TASK_ID is not running yet (state: $TASK_STATE)\n"
-              fi
-            done <<< "$MATCHING_TASKS"
+                              if [[ "$TASK_STATE" == Running* ]]; then
+                                        ((RUNNING_TASKS_COUNT++))
+                                        echo "✅ Task $TASK_ID is updated and running"
+                              else
+                                        PENDING_TASKS+="Task $TASK_ID is not running yet (state: $TASK_STATE)\n"
+                              fi
+                    done <<< "$MATCHING_TASKS"
 
-            echo "✅ Total updated running containers: $RUNNING_TASKS_COUNT"
+                    echo "✅ Total updated running containers: $RUNNING_TASKS_COUNT"
 
-            if [ -z "$PENDING_TASKS" ]; then
-              echo "✅ All updated tasks are running with the correct image SHA."
-              break
-            else
-              echo -e "⏳ Waiting for these tasks:\n$PENDING_TASKS"
-            fi
+                    if [ -z "$PENDING_TASKS" ]; then
+                              echo "✅ All updated tasks are running with the correct image SHA."
+                              break
+                    else
+                              echo -e "⏳ Waiting for these tasks:\n$PENDING_TASKS"
+                    fi
 
-            if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-              echo -e "\n❌ Timeout reached. Some updated tasks did not reach running state:"
-              echo -e "$PENDING_TASKS"
-              exit 1
-            fi
+                    if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+                              echo -e "\n❌ Timeout reached. Some updated tasks did not reach running state:"
+                              echo -e "$PENDING_TASKS"
+                              exit 1
+                    fi
 
-            sleep $SLEEP
-            ELAPSED=$((ELAPSED + SLEEP))
+                    sleep $SLEEP
+                    ELAPSED=$((ELAPSED + SLEEP))
           done
+
 
 
 
