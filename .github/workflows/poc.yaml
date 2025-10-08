@@ -52,63 +52,58 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@3.121.209.39 sudo -i <<'EOF'
 
           echo "🚀 Waiting for all new tasks to be healthy and running..."
-          SERVICE_NAME="${SERVICE_NAME:-invoice-extractor}"  # fallback default
-          STACK="${SERVICE_NAME}"
-          #STACK="${SERVICE_NAME}"  # or however you pass SERVICE_NAME into this script
+
+          STACK_NAME=invoice-extractor_app
           TIMEOUT=300
           SLEEP=5
           ELAPSED=0
 
-          echo "⏳ Waiting for all services in stack '$STACK' to run the new image digest..."
-          SERVICES=$(docker stack services -q "$STACK")
-          [ -z "$SERVICES" ] && { echo "❌ No services found in stack '$STACK'"; exit 1; }
+          echo "          🚀 Deploying stack..."
+          echo "          ⏳ Waiting for all updated tasks (by image SHA) to be running..."
 
-          while : ; do
-                    ALL_OK=true
+          while true; do
+                    PENDING_TASKS=""
+                    UPDATED_COUNTS=""
 
-                    for SVC in $SERVICES; do
-                              # Desired replicas (default 1 if not replicated mode)
-                              REPLICAS=$(docker service inspect --format '{{if .Spec.Mode.Replicated}}{{.Spec.Mode.Replicated.Replicas}}{{else}}1{{end}}' "$SVC")
-                              # Target pinned image digest
-                              TARGET_IMAGE=$(docker service inspect --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "$SVC")
+                    # Loop through each service in the stack
+                    for service in $(docker service ls --filter label=com.docker.stack.namespace=$STACK_NAME --format '{{.Name}}'); do
+                              # Get the full image with SHA used in the current spec
+                              SERVICE_IMAGE_WITH_SHA=$(docker service inspect "$service" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
 
-                              if [ -z "$TARGET_IMAGE" ]; then
-                                        echo "⚠️  $SVC: Could not read target image"
-                                        ALL_OK=false
-                                        continue
-                              fi
+                              # Get tasks for the service and check which ones match the current image SHA
+                              MATCHING_TASKS=$(docker service ps "$service" --no-trunc --filter desired-state=Running \
+                                        --format '{{.ID}} {{.Image}} {{.CurrentState}}' | grep "$SERVICE_IMAGE_WITH_SHA")
 
-                              # Count running tasks matching the target image exactly
-                              RUN_UPDATED=$(docker service ps --no-trunc --filter desired-state=running \
-                                        --format '{{.Image}} {{.CurrentState}}' "$SVC" \
-                                        | awk -v img="$TARGET_IMAGE" '$1==img && $2=="Running"{c++} END{print c+0}')
+                              # Count how many matching tasks are running
+                              RUNNING_UPDATED_TASKS=$(echo "$MATCHING_TASKS" | grep -c "Running")
 
-                              if ! [[ "$RUN_UPDATED" =~ ^[0-9]+$ ]]; then RUN_UPDATED=0; fi
+                              # Identify any matching tasks that are NOT running yet
+                              NOT_RUNNING_TASKS=$(echo "$MATCHING_TASKS" | grep -v "Running")
 
-                              if [ "$RUN_UPDATED" -lt "$REPLICAS" ]; then
-                                        echo "🟡 $SVC: $RUN_UPDATED / $REPLICAS tasks running the new image ($TARGET_IMAGE)"
-                                        ALL_OK=false
-                              else
-                                        echo "✅ $SVC: $RUN_UPDATED / $REPLICAS tasks running the new image"
+                              UPDATED_COUNTS+="$service: $RUNNING_UPDATED_TASKS updated running task(s)\n"
+
+                              if [ -n "$NOT_RUNNING_TASKS" ]; then
+                                        PENDING_TASKS+="$service has pending updated tasks:\n$NOT_RUNNING_TASKS\n"
                               fi
                     done
 
-                    $ALL_OK && break
+                    echo -e "\n          📊 Updated task status (matched by image SHA):\n$UPDATED_COUNTS"
+
+                    if [ -z "$PENDING_TASKS" ]; then
+                              echo "          ✅ All updated tasks are running with the correct image SHA."
+                              break
+                    fi
 
                     if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-                              echo "❌ Timeout waiting for updated tasks."
-                              for SVC in $SERVICES; do
-                                        echo "🔍 $SVC last tasks:"
-                                        docker service ps --no-trunc "$SVC" | sed -n '1,6p'
-                              done
+                              echo -e "\n          ❌ Timeout reached. Some updated tasks did not reach running state:"
+                              echo -e "$PENDING_TASKS"
                               exit 1
                     fi
 
-                    sleep "$SLEEP"
+                    sleep $SLEEP
                     ELAPSED=$((ELAPSED + SLEEP))
           done
 
-          echo "🎉 All services in '$STACK' are running the updated image digest."
 
 
           EOF
