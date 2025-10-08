@@ -42,20 +42,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      # ✅ Setup SSH key FIRST
       - name: Set up SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa          
 
-
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-            ubuntu@3.121.209.39 sudo -i <<EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@3.121.209.39 sudo -i <<EOF
           echo "🚀 Deploying on Swarm Leader"
 
-          SERVICE_NAME="${{ env.SERVICE_NAME }}"   # Expanded before SSH, assigned remotely
-          STACK_NAME="\${SERVICE_NAME}_app"        # Delayed expansion remotely
+          SERVICE_NAME="${{ env.SERVICE_NAME }}"
+          STACK_NAME="\${SERVICE_NAME}_app"
 
           TIMEOUT=300
           SLEEP=5
@@ -64,10 +61,9 @@ jobs:
 
           EXPECTED_COUNT=\$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -i '^Ready Active\$' | wc -l)
 
-          # Check EXPECTED_COUNT is a number
           if ! [[ "\$EXPECTED_COUNT" =~ ^[0-9]+\$ ]]; then
             echo "❌ Could not determine number of active nodes. Got: '\$EXPECTED_COUNT'"
-           exit 1
+            exit 1
           fi
 
           echo "📦 Waiting for all \$EXPECTED_COUNT tasks of \$STACK_NAME to be running..."
@@ -98,9 +94,10 @@ jobs:
                  exit 1
               fi
 
-                sleep "\$SLEEP"
-                ELAPSED=\$((ELAPSED + SLEEP))
-             done
+              sleep "\$SLEEP"
+              ELAPSED=\$((ELAPSED + SLEEP))
+          done
 
-           EOF
+EOF
+
 
