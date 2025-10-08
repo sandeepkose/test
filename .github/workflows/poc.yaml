@@ -61,7 +61,7 @@ jobs:
           SLEEP=5
           ELAPSED=0
 
-          echo "🚀 Deploying service: $SERVICE_NAME"
+          echo "🚀 Deploying service: \$SERVICE_NAME"
           echo "⏳ Waiting for all updated tasks (by image SHA) to be running..."
 
           while true; do
