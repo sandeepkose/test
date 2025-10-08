@@ -49,7 +49,10 @@ jobs:
           chmod 600 ~/.ssh/id_rsa          
 
 
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@3.121.209.39 sudo -i <<'EOF'
+      - name: Deploy / Update Service on Swarm Leader
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
+            ubuntu@$3.121.209.39 sudo -i <<EOF
 
           # Wait for updated tasks (of specific service) to become Running
           STACK_NAME="${{ env.STACK_NAME }}"
