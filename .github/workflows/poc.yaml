@@ -72,9 +72,9 @@ jobs:
             SERVICE_IMAGE_WITH_SHA=\$(docker service inspect \$SERVICE_NAME --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
 
             # Get current running tasks
-            TASKS=\$(docker service ps \$SERVICE_NAME --no-trunc --filter desired-state=Running \
+            TASKS=\$(docker service ps "\$SERVICE_NAME" --no-trunc --filter desired-state=Running \
               --format '{{"{{.ID}} {{.Image}} {{.CurrentState}}"}}')
-            echo "Get current task \$TASKS"
+            echo "Get current task \$TASKS or $TASKS"
 
             # Match only tasks using current image SHA
             MATCHING_TASKS=\$(echo "\$TASKS" | grep "\$SERVICE_IMAGE_WITH_SHA" || true)
