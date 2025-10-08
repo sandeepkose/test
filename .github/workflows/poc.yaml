@@ -1,0 +1,114 @@
+name: Release Build
+
+on:
+  push:
+    branches: ["**"]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CACHE_VERSION: 1
+  AWS_DEFAULT_REGION: eu-central-1
+  SERVICE_NAME: invoice-extractor
+
+jobs:
+  build-push:
+    name: Test, Build, and Push Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+  # https://kamrul.dev/dynamically-add-github-actions-ip-to-aws-security-group/
+  deploy-on-server:
+    name: Deploy docker on production server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Fetch all history for better metadata
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Set up SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa          
+
+
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@3.121.209.39 sudo -i <<'EOF'
+
+          echo "🚀 Waiting for all new tasks to be healthy and running..."
+          SERVICE_NAME="${SERVICE_NAME:-invoice-extractor}"  # fallback default
+          STACK="${SERVICE_NAME}_app"
+          #STACK="${SERVICE_NAME}"  # or however you pass SERVICE_NAME into this script
+          TIMEOUT=300
+          SLEEP=5
+          ELAPSED=0
+
+          echo "⏳ Waiting for all services in stack '$STACK' to run the new image digest..."
+          SERVICES=$(docker stack services -q "$STACK")
+          [ -z "$SERVICES" ] && { echo "❌ No services found in stack '$STACK'"; exit 1; }
+
+          while : ; do
+                    ALL_OK=true
+
+                    for SVC in $SERVICES; do
+                              # Desired replicas (default 1 if not replicated mode)
+                              REPLICAS=$(docker service inspect --format '{{if .Spec.Mode.Replicated}}{{.Spec.Mode.Replicated.Replicas}}{{else}}1{{end}}' "$SVC")
+                              # Target pinned image digest
+                              TARGET_IMAGE=$(docker service inspect --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "$SVC")
+
+                              if [ -z "$TARGET_IMAGE" ]; then
+                                        echo "⚠️  $SVC: Could not read target image"
+                                        ALL_OK=false
+                                        continue
+                              fi
+
+                              # Count running tasks matching the target image exactly
+                              RUN_UPDATED=$(docker service ps --no-trunc --filter desired-state=running \
+                                        --format '{{.Image}} {{.CurrentState}}' "$SVC" \
+                                        | awk -v img="$TARGET_IMAGE" '$1==img && $2=="Running"{c++} END{print c+0}')
+
+                              if ! [[ "$RUN_UPDATED" =~ ^[0-9]+$ ]]; then RUN_UPDATED=0; fi
+
+                              if [ "$RUN_UPDATED" -lt "$REPLICAS" ]; then
+                                        echo "🟡 $SVC: $RUN_UPDATED / $REPLICAS tasks running the new image ($TARGET_IMAGE)"
+                                        ALL_OK=false
+                              else
+                                        echo "✅ $SVC: $RUN_UPDATED / $REPLICAS tasks running the new image"
+                              fi
+                    done
+
+                    $ALL_OK && break
+
+                    if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+                              echo "❌ Timeout waiting for updated tasks."
+                              for SVC in $SERVICES; do
+                                        echo "🔍 $SVC last tasks:"
+                                        docker service ps --no-trunc "$SVC" | sed -n '1,6p'
+                              done
+                              exit 1
+                    fi
+
+                    sleep "$SLEEP"
+                    ELAPSED=$((ELAPSED + SLEEP))
+          done
+
+          echo "🎉 All services in '$STACK' are running the updated image digest."
+
+
+          EOF
