@@ -55,8 +55,8 @@ jobs:
             ubuntu@3.121.209.39 sudo -i <<EOF
 
           # Wait for updated tasks (of specific service) to become Running
-          STACK_NAME="${{ env.STACK_NAME }}"
-          SERVICE_NAME="${STACK_NAME}_app"
+          ##STACK_NAME="${{ env.STACK_NAME }}"
+          SERVICE_NAME="${{ env.STACK_NAME }}_app"
           TIMEOUT=300
           SLEEP=5
           ELAPSED=0
