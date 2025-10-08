@@ -69,13 +69,13 @@ jobs:
                     RUNNING_TASKS_COUNT=0
 
                     # Get the current image SHA from service spec
-                    SERVICE_IMAGE_WITH_SHA=$(docker service inspect "$SERVICE_NAME" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
+                    SERVICE_IMAGE_WITH_SHA=$(docker service inspect "\$SERVICE_NAME" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
 
                     # Get current running tasks
-                    TASKS=$(docker service ps "$SERVICE_NAME" --no-trunc --filter desired-state=Running --format '{{.ID}} {{.Image}} {{.CurrentState}}')
+                    TASKS=$(docker service ps "\$SERVICE_NAME" --no-trunc --filter desired-state=Running --format '{{.ID}} {{.Image}} {{.CurrentState}}')
 
                     # Match only tasks using current image SHA
-                    MATCHING_TASKS=$(echo "$TASKS" | grep "$SERVICE_IMAGE_WITH_SHA" || true)
+                    MATCHING_TASKS=$(echo "$TASKS" | grep "\$SERVICE_IMAGE_WITH_SHA" || true)
 
                     while IFS= read -r line; do
                               TASK_ID=$(echo "$line" | awk '{print $1}')
