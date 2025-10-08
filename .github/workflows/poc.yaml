@@ -9,7 +9,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   CACHE_VERSION: 1
   AWS_DEFAULT_REGION: eu-central-1
-  SERVICE_NAME: invoice-extractor
+  STACK_NAME: invoice-extractor
 
 jobs:
   build-push:
