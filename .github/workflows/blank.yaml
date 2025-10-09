@@ -69,7 +69,7 @@ jobs:
                     SERVICE_IMAGE_WITH_SHA=$(docker service inspect "$SERVICE_NAME" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
 
                     # Get number of expected tasks (should match Ready Active nodes)
-                    EXPECTED_TASKS=$(docker service ps "$SERVICE_NAME" --no-trunc --filter desired-state=Running | wc -l)
+                    EXPECTED_TASKS=$(docker service ps "$SERVICE_NAME" --no-trunc --filter desired-state=Running | tail -n +2 | wc -l)
 
                     # Get current tasks with image and state
                     TASKS=$(docker service ps "$SERVICE_NAME" --no-trunc --filter desired-state=Running --format '{{.ID}} {{.Image}} {{.CurrentState}}')
