@@ -113,7 +113,7 @@ jobs:
                               break
                       fi
 
-                      if [ "$\ELAPSED" -ge "\$TIMEOUT" ]; then
+                      if [ "\$ELAPSED" -ge "\$TIMEOUT" ]; then
                               echo -e "\n❌ Timeout reached. Not all tasks are updated:"
                               echo -e "\$PENDING_TASKS"
                               exit 1
