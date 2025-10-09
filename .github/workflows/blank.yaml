@@ -83,7 +83,7 @@ jobs:
                               else
                                         PENDING_TASKS+="Task $TASK_ID is not running yet (state: $TASK_STATE)\n"
                               fi
-                    done <<< "$TASKS"
+                    done <<< "$MATCHING_TASKS"
 
                     echo "✅ Total updated running containers: $RUNNING_TASKS_COUNT"
 
