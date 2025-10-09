@@ -68,7 +68,7 @@ jobs:
             echo "📊 Found \$NODE_COUNT Ready Active nodes"
             
                         
-            sleep 30
+            sleep 3
             
             STACK_NAME="${{ env.STACK_NAME }}"
             SERVICE_NAME="${STACK_NAME}_app"
