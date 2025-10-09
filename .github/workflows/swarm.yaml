@@ -59,7 +59,7 @@ jobs:
           script_stop: true
           command_timeout: 15m
           script: |
-            sudo -i <<'EOF'
+            sudo -i <<EOF
             echo "🚀 Deploying on Swarm Leader"
 
             # Count number of Ready + Active nodes
