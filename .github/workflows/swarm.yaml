@@ -66,8 +66,6 @@ jobs:
             NODE_COUNT=\$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -c "Ready Active")
             echo "📊 Found \$NODE_COUNT Ready Active nodes"
 
-            sleep 3
-
             STACK_NAME="${{ env.STACK_NAME }}"
             SERVICE_NAME="\${STACK_NAME}_app"
 
@@ -75,9 +73,11 @@ jobs:
             SLEEP=5
             ELAPSED=0
 
-            echo "🚀 Deploying global service: \$SERVICE_NAME"
+            echo "🚀 Deploying service: \$SERVICE_NAME"
             echo "⏳ Waiting for all tasks to be running with the updated image..."
-
+ 
+            sleep 5
+             
             while true; do
               PENDING_TASKS=""
               RUNNING_MATCHING_COUNT=0
@@ -85,6 +85,8 @@ jobs:
               # Get latest image used by service
               SERVICE_IMAGE_WITH_SHA=\$(docker service inspect "\$SERVICE_NAME" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
 
+              echo "SERVICE_IMAGE_WITH_SHA: \$SERVICE_IMAGE_WITH_SHA"
+            
               # Get number of expected tasks (should match Ready Active nodes)
               EXPECTED_TASKS=\$(docker service ps "\$SERVICE_NAME" --no-trunc --filter desired-state=Running | tail -n +2 | wc -l)
 
@@ -120,6 +122,6 @@ jobs:
               echo -e "⏳ Waiting for tasks to update...\n\$PENDING_TASKS"
               sleep \$SLEEP
               ELAPSED=\$((ELAPSED + SLEEP))
-            done
+            done 
             EOF
 
