@@ -77,7 +77,7 @@ jobs:
             SLEEP=5
             ELAPSED=0
 
-            echo "🚀 Deploying global service: $SERVICE_NAME"
+            echo "🚀 Deploying global service: \$SERVICE_NAME"
             echo "⏳ Waiting for all tasks to be running with the updated image..."
 
             while true; do
