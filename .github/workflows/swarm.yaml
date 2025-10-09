@@ -119,8 +119,8 @@ jobs:
                               exit 1
                       fi
 
-                      echo -e "⏳ Waiting for tasks to update...\n$PENDING_TASKS"
-                      sleep $SLEEP
+                      echo -e "⏳ Waiting for tasks to update...\n\$PENDING_TASKS"
+                      sleep \$SLEEP
                       ELAPSED=$((ELAPSED + SLEEP))
             done
      
