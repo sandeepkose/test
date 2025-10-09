@@ -1,0 +1,127 @@
+name: New Release Build
+
+on:
+  push:
+    branches: ["**"]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CACHE_VERSION: 1
+  AWS_DEFAULT_REGION: eu-central-1
+  STACK_NAME: invoice-extractor
+
+jobs:
+  build-push:
+    name: Test, Build, and Push Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+  # https://kamrul.dev/dynamically-add-github-actions-ip-to-aws-security-group/
+  deploy-on-server:
+    name: Deploy docker on production server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Fetch all history for better metadata
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Set up SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa   
+
+
+      - name: Deploy / Update Service on Swarm Leader
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 3.75.86.71
+          username: ubuntu
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22                                   # adjust if needed
+          script_stop: true                          # fail the job if any command fails
+          command_timeout: 15m                       # optional
+          script: |
+            sudo -i <<EOF
+            echo "🚀 Deploying on Swarm Leader"
+                      
+            
+            # Count number of Ready + Active nodes
+            NODE_COUNT=\$(docker node ls --format '{{.Status}} {{.Availability}}' | grep -c "Ready Active")
+            echo "📊 Found \$NODE_COUNT Ready Active nodes"
+            
+                        
+            sleep 30
+            
+            STACK_NAME="${{ env.STACK_NAME }}"
+            SERVICE_NAME="${STACK_NAME}_app"
+
+            TIMEOUT=300
+            SLEEP=5
+            ELAPSED=0
+
+            echo "🚀 Deploying global service: $SERVICE_NAME"
+            echo "⏳ Waiting for all tasks to be running with the updated image..."
+
+            while true; do
+                      PENDING_TASKS=""
+                      RUNNING_MATCHING_COUNT=0
+
+                      # Get latest image used by service
+                      SERVICE_IMAGE_WITH_SHA=$(docker service inspect "$SERVICE_NAME" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
+
+                      # Get number of expected tasks (should match Ready Active nodes)
+                      EXPECTED_TASKS=$(docker service ps "$SERVICE_NAME" --no-trunc --filter desired-state=Running | tail -n +2 | wc -l)
+
+                      # Get current tasks with image and state
+                      TASKS=$(docker service ps "$SERVICE_NAME" --no-trunc --filter desired-state=Running --format '{{.ID}} {{.Image}} {{.CurrentState}}')
+
+                      while IFS= read -r line; do
+                              TASK_ID=$(echo "$line" | awk '{print $1}')
+                              TASK_IMAGE=$(echo "$line" | awk '{print $2}')
+                              TASK_STATE=$(echo "$line" | awk '{$1=""; $2=""; print $0}' | xargs)
+
+                              if [[ "$TASK_IMAGE" == "$SERVICE_IMAGE_WITH_SHA" && "$TASK_STATE" == Running* ]]; then
+                                        ((RUNNING_MATCHING_COUNT++))
+                                        echo "✅ Task $TASK_ID is running updated image"
+                              else
+                                        PENDING_TASKS+="Task $TASK_ID is not updated or not running (Image: $TASK_IMAGE, State: $TASK_STATE)\n"
+                              fi
+                      done <<< "$TASKS"
+
+                      echo "✅ $RUNNING_MATCHING_COUNT / $EXPECTED_TASKS tasks running with updated image"
+
+                      if [[ "$RUNNING_MATCHING_COUNT" -eq "$EXPECTED_TASKS" ]]; then
+                              echo "🎉 All tasks are updated and running in global mode"
+                              break
+                      fi
+
+                      if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+                              echo -e "\n❌ Timeout reached. Not all tasks are updated:"
+                              echo -e "$PENDING_TASKS"
+                              exit 1
+                      fi
+
+                      echo -e "⏳ Waiting for tasks to update...\n$PENDING_TASKS"
+                      sleep $SLEEP
+                      ELAPSED=$((ELAPSED + SLEEP))
+            done
+     
+            EOF
